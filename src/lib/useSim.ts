@@ -21,7 +21,7 @@ export function useSim() {
   const applied = appliedId ? report.candidates.find((c) => c.id === appliedId) ?? null : null;
   const recovered = applied?.result ?? null;
   const shown = view === "after" && recovered ? recovered : disrupted;
-  const story = useMemo(() => buildStory(net, disrupted, report), [net, disrupted, report]);
+  const story = useMemo(() => buildStory(net, disrupted, report, appliedId), [net, disrupted, report, appliedId]);
   return { net, scenario, baselineDay, report, disrupted, applied, recovered, shown, story };
 }
 

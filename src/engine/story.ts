@@ -26,7 +26,7 @@ export interface StoryChapter {
 const n = (x: number) => x.toLocaleString("en-IN");
 
 /** Deterministic templates turning the event ledger into seven chapters. No invented facts. */
-export function buildStory(net: Network, r: SimulationResult, rep: RecoveryReport | null): StoryChapter[] {
+export function buildStory(net: Network, r: SimulationResult, rep: RecoveryReport | null, appliedId: string | null = null): StoryChapter[] {
   const s = r.scenario!;
   const ap = net.airportById[s.airport];
   const ev = r.events;
@@ -175,16 +175,19 @@ export function buildStory(net: Network, r: SimulationResult, rep: RecoveryRepor
 
   // 6 — Dispatcher
   if (rep) {
-    const w = rep.winner;
+    const applied = appliedId ? rep.candidates.find((c) => c.id === appliedId && c.feasible) ?? null : null;
+    const w = applied ?? rep.winner;
+    const userChoice = applied && applied.id !== rep.winner.id;
     const runnerUp = rep.ranked.find((c) => c.id !== w.id && c.actions.length > 0);
     const rejectedAttractive = rep.candidates.find((c) => !c.feasible && c.result);
     chapters.push({
       ...blank, index: 6, key: "dispatcher", kicker: "Scene 06 · The dispatcher",
-      headline: w.actions.length ? `Recommended: ${w.title}.` : "Recommended: change nothing.",
+      headline: userChoice ? `Applied by you: ${w.title}.` : w.actions.length ? `Recommended: ${w.title}.` : "Recommended: change nothing.",
       sentence: w.actions.length
         ? `The dispatcher simulated ${rep.stats.simulated} plans in full and ranked the ${rep.stats.feasible} feasible ones by its objective. ${w.title} ranked first.`
         : `The dispatcher simulated ${rep.stats.simulated} plans in full. None of them beat the untreated schedule under the objective, so the honest answer is to leave it.`,
       bullets: [
+        ...(userChoice ? [`You applied plan #${w.rank}. The dispatcher's recommendation under this objective was #1: ${rep.winner.title}.`] : []),
         `${rep.stats.generated} options considered; ${rep.stats.prefilterRejected} ruled out before simulation (aircraft or crew not physically there).`,
         `${rep.stats.postCheckRejected} rejected after simulation; ${rep.stats.improving} feasible plans improve on doing nothing.`,
         ...(runnerUp ? [`Runner-up: ${runnerUp.title}.`] : []),

@@ -18,7 +18,7 @@ export function StoryMode({ sim }: { sim: Sim }) {
   const textRef = useRef<HTMLDivElement>(null);
   const chapters = sim.story;
   const ch = chapters[Math.min(storyIndex, chapters.length - 1)];
-  const winner = sim.report.winner;
+  const winner = sim.applied ?? sim.report.winner; // the plan the user applied, else the recommendation
   const recovered = winner.result;
   const showRecovered = ch.useRecovered && ch.key === "resolution" && recovered && winner.actions.length > 0;
   const mapResult = ch.key === "normal" ? sim.baselineDay : showRecovered ? recovered! : sim.disrupted;
@@ -32,13 +32,14 @@ export function StoryMode({ sim }: { sim: Sim }) {
   const prevEvent = () => { if (eventIdx > -1) setEventIdx(eventIdx - 1); else if (storyIndex > 0) go(storyIndex - 1); };
   const exit = () => set({ storyOpen: false });
 
+  // One playback controller: autoplay advances event by event (map time = that event's simulated timestamp), then to the next chapter.
   useEffect(() => {
     if (!auto) return;
-    if (storyIndex >= chapters.length - 1) { setAuto(false); return; }
-    const t = setTimeout(() => go(storyIndex + 1), DWELL);
+    if (storyIndex >= chapters.length - 1 && eventIdx >= chEvents.length - 1) { setAuto(false); return; }
+    const t = setTimeout(() => nextEvent(), eventIdx === -1 ? DWELL / 2 : DWELL / 3);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auto, storyIndex, chapters.length]);
+  }, [auto, storyIndex, eventIdx, chapters.length]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

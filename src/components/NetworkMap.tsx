@@ -72,6 +72,7 @@ export function NetworkMap(props: {
   onSelectFlight?: (id: string) => void;
   showPlanes?: boolean;
   revealKey?: string | number;
+  chronological?: boolean;
 }) {
   const { net, result, compare, time, selectedFlight, onSelectFlight } = props;
   const pos = useProjection(net);
@@ -85,6 +86,13 @@ export function NetworkMap(props: {
   for (const id of focus) { const f = result.flightById[id]; if (f) { focusAirports.add(f.flight.origin); focusAirports.add(f.flight.destination); } }
   if (s) focusAirports.add(s.airport);
   const hasFocus = focus.size > 0;
+  // Chronology: a flight's computed disruption becomes visible only from the timestamp of its first ledger event.
+  const knownAt = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const e of result.events) if (e.flightId) m[e.flightId] = Math.min(m[e.flightId] ?? Infinity, e.time);
+    return m;
+  }, [result]);
+  const toneAt = (f: SimulatedFlight) => (props.chronological === false || time >= (knownAt[f.flight.id] ?? Infinity) ? flightTone(f, compare) : "normal");
 
   const routes = useMemo(() => {
     const m = new Map<string, SimulatedFlight[]>();
@@ -94,10 +102,9 @@ export function NetworkMap(props: {
     }
     return [...m.entries()].map(([key, flights]) => {
       const [a, b] = key.split("-");
-      const tone = flights.map((f) => flightTone(f, compare)).sort((x, y) => rank[y] - rank[x])[0];
-      return { key, a, b, flights, tone };
-    }).sort((x, y) => rank[x.tone] - rank[y.tone]);
-  }, [result, compare]);
+      return { key, a, b, flights };
+    });
+  }, [result]);
 
   // Purposeful motion only: network reveal on a new scenario, chain draw when the highlighted chain changes.
   useEffect(() => {
@@ -127,6 +134,7 @@ export function NetworkMap(props: {
 
   const airborne = props.showPlanes === false ? [] : result.flights.filter((f) => f.status !== "cancelled" && f.actualDep! <= time && time < f.actualArr!);
   const hovered = hover ? result.flightById[hover] : null;
+  const hoveredRoute = hovered ? result.flights.filter((f) => [f.flight.origin, f.flight.destination].sort().join("-") === [hovered.flight.origin, hovered.flight.destination].sort().join("-")) : [];
 
   return (
     <div className="relative h-full w-full">
@@ -142,7 +150,7 @@ export function NetworkMap(props: {
         </g>
         <text x={W - 18} y={30} fontSize={11} fill="#8aa0b8" textAnchor="end" className="mono">N ↑</text>
 
-        {routes.map((r) => {
+        {routes.map((r0) => ({ ...r0, tone: r0.flights.map(toneAt).sort((x, y) => rank[y] - rank[x])[0] })).sort((x, y) => rank[x.tone] - rank[y.tone]).map((r) => {
           const { p, q, c } = pairGeom(pos, r.a, r.b);
           const inFocus = r.flights.some((f) => focus.has(f.flight.id));
           const col = STATUS_COLOR[r.tone];
@@ -154,7 +162,7 @@ export function NetworkMap(props: {
                 strokeDasharray={r.tone === "cancelled" ? "5 5" : undefined} style={{ transition: "stroke .4s, stroke-opacity .4s" }} />
               <path d={`M${p.x},${p.y} Q${c.x},${c.y} ${q.x},${q.y}`} fill="none" stroke="transparent" strokeWidth={14}
                 className="cursor-pointer" onMouseEnter={() => setHover(r.flights[0].flight.id)} onMouseLeave={() => setHover(null)}
-                onClick={() => onSelectFlight?.(r.flights.slice().sort((x, y) => rank[flightTone(y, compare)] - rank[flightTone(x, compare)])[0].flight.id)}>
+                onClick={() => onSelectFlight?.(r.flights.slice().sort((x, y) => rank[toneAt(y)] - rank[toneAt(x)])[0].flight.id)}>
                 <title>{r.flights.map((f) => `${f.flight.id} ${f.flight.origin}→${f.flight.destination} ${f.status}`).join("\n")}</title>
               </path>
             </g>
@@ -165,7 +173,7 @@ export function NetworkMap(props: {
         {chain.map((id, i) => {
           const f = result.flightById[id];
           const { p, q, c, forward } = pairGeom(pos, f.flight.origin, f.flight.destination);
-          const tone = flightTone(f, compare);
+          const tone = toneAt(f);
           // offset the sequence badge toward the leg's origin so out-and-back legs on one curve don't stack
           const mid = bez(p, c, q, forward ? 0.32 : 0.68);
           const d = forward ? `M${p.x},${p.y} Q${c.x},${c.y} ${q.x},${q.y}` : `M${q.x},${q.y} Q${c.x},${c.y} ${p.x},${p.y}`;
@@ -186,7 +194,7 @@ export function NetworkMap(props: {
           const { p, q, c, forward } = pairGeom(pos, f.flight.origin, f.flight.destination);
           const t = (time - f.actualDep!) / (f.actualArr! - f.actualDep!);
           const pt = bez(p, c, q, forward ? t : 1 - t);
-          const tone = flightTone(f, compare);
+          const tone = toneAt(f);
           const quiet = hasFocus && !focus.has(f.flight.id);
           return (
             <g key={f.flight.id} className="cursor-pointer" onClick={() => onSelectFlight?.(f.flight.id)} opacity={quiet ? 0.35 : 1}>
@@ -222,8 +230,12 @@ export function NetworkMap(props: {
       </svg>
       {hovered && (
         <div className="pointer-events-none absolute left-3 top-12 rounded-lg bg-night/95 px-3 py-2 text-xs shadow-lg">
-          <div className="mono text-sm font-semibold">{hovered.flight.id} · {hovered.flight.origin}→{hovered.flight.destination}</div>
-          <div className="text-mute">Sched {fmt(hovered.flight.dep)}–{fmt(hovered.flight.arr)} · {hovered.status === "cancelled" ? "Cancelled" : `Actual ${fmt(hovered.actualDep)}–${fmt(hovered.actualArr)}`}</div>
+          <div className="label mb-1">Route inspector · {hoveredRoute.length} flight{hoveredRoute.length > 1 ? "s" : ""}</div>
+          {hoveredRoute.map((f) => {
+            const t = toneAt(f);
+            return <div key={f.flight.id} className="mono flex gap-3"><span className="font-semibold">{f.flight.id}</span><span className="text-mute">{f.flight.origin}→{f.flight.destination} {fmt(f.flight.dep)}</span><span style={{ color: STATUS_COLOR[t] }}>{t === "normal" ? "normal" : f.status === "cancelled" ? "cancelled" : `${fmt(f.actualDep)} +${f.delay}m`}</span></div>;
+          })}
+          <div className="mt-1 text-mute">States as known at {fmt(Math.round(time))} simulated time.</div>
         </div>
       )}
     </div>
