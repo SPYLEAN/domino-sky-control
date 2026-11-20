@@ -3,6 +3,8 @@ import { create } from "zustand";
 import type { Strategy } from "@/engine/recovery";
 
 export type RightTab = "brief" | "recovery" | "ledger" | "flights";
+export type Mode = "control" | "investigate" | "recover";
+export type StageView = "network" | "aircraft3d" | "evidence";
 
 interface UiState {
   airport: string;
@@ -19,6 +21,10 @@ interface UiState {
   playing: boolean;
   speed: number;
   tab: RightTab;
+  mode: Mode;
+  stageView: StageView;
+  scenarioOpen: boolean;
+  briefOpen: boolean;
   storyOpen: boolean;
   storyIndex: number;
   introOpen: boolean;
@@ -44,6 +50,10 @@ export const useUi = create<UiState>((set, get) => ({
   playing: false,
   speed: 4,
   tab: "brief",
+  mode: "control",
+  stageView: "network",
+  scenarioOpen: false,
+  briefOpen: true,
   storyOpen: false,
   storyIndex: 0,
   introOpen: false,
@@ -54,12 +64,12 @@ export const useUi = create<UiState>((set, get) => ({
     const { airport, start, duration, scenarioKey } = get();
     set({
       committed: { airport, start, end: start + duration }, scenarioKey: scenarioKey + 1, appliedId: null, view: "before",
-      selectedFlight: null, selectedEvent: null, time: start, playing: false, tab: "brief",
+      selectedFlight: null, selectedEvent: null, time: start, playing: false, tab: "brief", mode: "control", briefOpen: true,
     });
   },
   reset: () => set({
     ...DEFAULT, committed: { airport: DEFAULT.airport, start: DEFAULT.start, end: DEFAULT.start + DEFAULT.duration },
     appliedId: null, view: "before", selectedFlight: null, selectedEvent: null, time: DEFAULT.start, playing: false,
-    strategy: "protect_passengers", storyOpen: false, storyIndex: 0,
+    strategy: "protect_passengers", storyOpen: false, storyIndex: 0, mode: "control", stageView: "network", tab: "brief", briefOpen: true, scenarioOpen: false,
   }),
 }));

@@ -17,10 +17,14 @@ const BINDING_LABEL: Record<string, string> = {
   connection_hold: "Dispatcher hold for connecting passengers",
 };
 
-export function FlightDrawer({ net, result, compare }: { net: Network; result: SimulationResult; compare: SimulationResult | null }) {
+export function FlightDrawer({ net, result, compare, inline }: { net: Network; result: SimulationResult; compare: SimulationResult | null; inline?: boolean }) {
   const { selectedFlight, set, tab } = useUi();
   const [layer, setLayer] = useState<1 | 2 | 3>(1);
   const sim = selectedFlight ? result.flightById[selectedFlight] : null;
+  if (inline) {
+    if (!sim) return <div className="flex h-full items-center justify-center p-8 text-center text-[15px] text-mute">Select a flight on the map, timeline or list to investigate it.</div>;
+    return <div className="flex h-full flex-col overflow-hidden"><Body net={net} result={result} compare={compare} fid={sim.flight.id} layer={layer} setLayer={setLayer} onClose={() => set({ selectedFlight: null })} /></div>;
+  }
   return (
     <AnimatePresence>
       {sim && tab !== "brief" && (

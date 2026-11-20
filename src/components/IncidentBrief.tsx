@@ -97,7 +97,7 @@ export function IncidentBrief({ sim }: { sim: Sim }) {
               </button>
               {open === i && st.proof.length > 0 && (
                 <details className="mt-1 rounded-lg bg-night px-3 py-2 text-xs">
-                  {st.flight && <button className="float-right text-radar hover:underline" onClick={() => ui.set({ tab: "flights", selectedFlight: st.flight })}>Open Flight DNA →</button>}
+                  {st.flight && <button className="float-right text-radar hover:underline" onClick={() => ui.set({ mode: "investigate", stageView: "aircraft3d", selectedFlight: st.flight })}>Investigate in 3D →</button>}
                   <summary className="cursor-pointer text-radar">Show the proof</summary>
                   <ol className="mono mt-2 space-y-1 text-[11.5px] text-ice/80">{st.proof.map((l, j) => <li key={j}>{l}</li>)}</ol>
                 </details>
@@ -108,8 +108,8 @@ export function IncidentBrief({ sim }: { sim: Sim }) {
       </ol>
       <div className="flex flex-wrap gap-2">
         <button className="btn btn-primary px-4 py-2.5 text-sm" onClick={() => ui.set({ storyOpen: true, storyIndex: 0 })}>Follow the dominoes <ArrowRight size={14} /></button>
-        <button className="btn" onClick={() => ui.set({ tab: "recovery" })}>Compare recovery plans</button>
-        <button className="btn" onClick={() => ui.set({ selectedFlight: null, selectedEvent: null, tab: "flights" })}>Explore full network</button>
+        <button className="btn" onClick={() => ui.set({ mode: "recover" })}>Compare recovery plans</button>
+        <button className="btn" onClick={() => ui.set({ selectedFlight: null, selectedEvent: null, briefOpen: false })}>Explore full network</button>
       </div>
     </div>
   );

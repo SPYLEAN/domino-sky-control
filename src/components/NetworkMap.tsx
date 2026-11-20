@@ -196,8 +196,13 @@ export function NetworkMap(props: {
           const pt = bez(p, c, q, forward ? t : 1 - t);
           const tone = toneAt(f);
           const quiet = hasFocus && !focus.has(f.flight.id);
+          // Flown portion of the leg up to simulated time T (de Casteljau split of the route curve).
+          const from = forward ? p : q;
+          const tt = forward ? t : t;
+          const c1 = { x: from.x + (c.x - from.x) * tt, y: from.y + (c.y - from.y) * tt };
           return (
             <g key={f.flight.id} className="cursor-pointer" onClick={() => onSelectFlight?.(f.flight.id)} opacity={quiet ? 0.35 : 1}>
+              <path d={`M${from.x},${from.y} Q${c1.x},${c1.y} ${pt.x},${pt.y}`} fill="none" stroke={STATUS_COLOR[tone]} strokeWidth={2.4} strokeOpacity={0.75} strokeLinecap="round" />
               <circle cx={pt.x} cy={pt.y} r={9} fill={STATUS_COLOR[tone]} opacity={0.18} />
               <circle cx={pt.x} cy={pt.y} r={4} fill={STATUS_COLOR[tone]} stroke="#08121F" strokeWidth={1.2} />
               <title>{`${f.flight.id} airborne ${fmt(f.actualDep)}→${fmt(f.actualArr)}`}</title>
