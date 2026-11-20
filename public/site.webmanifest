@@ -1,0 +1,11 @@
+{
+  "name": "DOMINO SKY: CONTROL",
+  "short_name": "DOMINO SKY",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "theme_color": "#08121F",
+  "background_color": "#08121F",
+  "display": "standalone"
+}

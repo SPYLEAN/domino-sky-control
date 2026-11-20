@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
@@ -9,7 +9,10 @@ const jet = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jet", weight:
 export const metadata: Metadata = {
   title: "Domino Sky: Control — Predict the ripple. Break the chain.",
   description: "Deterministic airline disruption simulator: close any airport, watch the delay cascade through aircraft rotations, connections and crew duty, then find and prove a feasible recovery.",
+  manifest: "/site.webmanifest",
 };
+
+export const viewport: Viewport = { themeColor: "#08121F" };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
