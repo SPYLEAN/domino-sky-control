@@ -105,7 +105,7 @@ export function NetworkMap(props: {
     const ctx = gsap.context(() => {
       const tl = gsap.timeline();
       tl.from(".ap-node", { scale: 0.4, transformOrigin: "50% 50%", duration: 0.45, stagger: 0.03, ease: "back.out(2)" });
-      tl.from(".route", { strokeDashoffset: 300, strokeDasharray: 300, duration: 0.9, stagger: 0.015, ease: "power2.out", clearProps: "strokeDasharray,strokeDashoffset" }, 0.1);
+
       const safety = setTimeout(() => tl.progress(1), 2500); // never leave the map half-drawn if frames are throttled
       return () => clearTimeout(safety);
     }, svgRef);
@@ -116,8 +116,9 @@ export function NetworkMap(props: {
     if (!svgRef.current || !chainKey || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const ctx = gsap.context(() => {
       const tl = gsap.timeline();
-      tl.from(".chain-leg", { strokeDashoffset: 400, strokeDasharray: 400, duration: 0.6, stagger: 0.35, ease: "power2.inOut", clearProps: "strokeDasharray,strokeDashoffset" });
-      tl.from(".chain-mark", { scale: 0, transformOrigin: "50% 50%", duration: 0.3, stagger: 0.35, ease: "back.out(3)" }, 0.3);
+      // Never hides anything: each leg pulses in flight order, so a throttled frame loop still shows the full chain.
+      tl.from(".chain-leg", { strokeWidth: 9, duration: 0.5, stagger: 0.3, ease: "power2.out", clearProps: "strokeWidth" });
+      tl.from(".chain-mark", { scale: 1.7, transformOrigin: "50% 50%", duration: 0.35, stagger: 0.3, ease: "back.out(2)" }, 0);
       const safety = setTimeout(() => tl.progress(1), 3000);
       return () => clearTimeout(safety);
     }, svgRef);
