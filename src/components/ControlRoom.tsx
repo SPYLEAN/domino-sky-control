@@ -29,32 +29,53 @@ export function ControlRoom() {
   }, []);
   const compare = ui.view === "after" && sim.recovered ? sim.disrupted : null;
   const stage = ui.storyOpen ? 0 : ui.appliedId ? 5 : ui.tab === "recovery" ? 4 : ui.selectedFlight ? 3 : 2;
+  // Highlighted chain: the selected flight's aircraft, otherwise the longest knock-on chain the engine found.
+  const selTail = ui.selectedFlight ? sim.shown.flightById[ui.selectedFlight]?.tail : null;
+  const chainTail = selTail ?? sim.story.find((c) => c.key === "cascade" && !c.empty)?.tails[0] ?? null;
+  const chainLegs = chainTail ? sim.shown.flights.filter((f) => f.tail === chainTail).sort((a, b) => a.flight.dep - b.flight.dep) : [];
 
   return (
     <div className="flex min-h-screen flex-col">
       <TopBar sim={sim} stage={stage} />
       <KpiStrip sim={sim} />
-      <main className="grid flex-1 grid-cols-1 gap-3 px-4 pb-4 xl:grid-cols-[300px_minmax(0,1fr)_420px]">
+      <main className="grid flex-1 grid-cols-1 gap-4 px-4 pb-4 lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[310px_minmax(0,1fr)_390px] xl:px-6">
         <ScenarioPanel sim={sim} />
-        <section className="panel relative min-h-[520px] overflow-hidden p-2" aria-label="Network map">
-          <div className="absolute left-4 top-3 z-10 flex items-center gap-2">
-            <span className="label">India network · {sim.net.airports.length} airports</span>
+        <section className="panel relative h-[118vw] max-h-[640px] overflow-hidden lg:max-h-none lg:h-[calc(100vh-200px)] lg:min-h-[560px]" aria-label="Network map">
+          <div className="absolute left-4 right-4 top-3 z-10 flex flex-wrap items-center gap-2">
+            <span className="label">India network · {sim.net.airports.length} airports · north up</span>
             {sim.recovered && (
-              <div className="ml-2 flex rounded-lg border border-line bg-night p-0.5 text-xs font-semibold" role="group" aria-label="Before and after">
+              <div className="ml-auto flex rounded-lg bg-night p-0.5 text-xs font-semibold" role="group" aria-label="Before and after">
                 {(["before", "after"] as const).map((v) => (
-                  <button key={v} onClick={() => ui.set({ view: v })} className={`rounded-md px-2.5 py-1 ${ui.view === v ? (v === "after" ? "bg-mint text-night" : "bg-amber text-night") : "text-mute"}`}>{v === "before" ? "Before recovery" : "After recovery"}</button>
+                  <button key={v} onClick={() => ui.set({ view: v })} className={`rounded-md px-2.5 py-1 ${ui.view === v ? (v === "after" ? "bg-mint text-night" : "bg-amber text-night") : "text-mute"}`}>{v === "before" ? "Before" : "After recovery"}</button>
                 ))}
               </div>
             )}
           </div>
           <MapLegend />
-          <NetworkMap net={sim.net} result={sim.shown} compare={compare} time={ui.time} selectedFlight={ui.selectedFlight}
-            onSelectFlight={(id) => ui.set({ selectedFlight: id })} revealKey={ui.scenarioKey} />
+          <div className="absolute inset-0 px-2 pb-2 pt-14">
+            <NetworkMap net={sim.net} result={sim.shown} compare={compare} time={ui.time} selectedFlight={ui.selectedFlight}
+              chain={chainLegs.map((f) => f.flight.id)} onSelectFlight={(id) => ui.set({ selectedFlight: id })} revealKey={ui.scenarioKey} />
+          </div>
+          {chainTail && chainLegs.length > 0 && (
+            <div className="absolute bottom-3 right-3 z-10 hidden max-w-[min(360px,60%)] rounded-xl bg-night/90 p-3 text-xs sm:block">
+              <div className="label">{selTail ? "Selected aircraft" : "Longest knock-on chain"} · <span className="mono text-ice">{chainTail}</span></div>
+              <ol className="mt-1.5 space-y-0.5">
+                {chainLegs.map((f, i) => (
+                  <li key={f.flight.id}>
+                    <button className="mono flex w-full gap-2 text-left hover:text-radar" onClick={() => ui.set({ selectedFlight: f.flight.id, time: f.actualDep ?? f.flight.dep })}>
+                      <span className="w-4 text-mute">{i + 1}</span><span className="w-14 font-semibold">{f.flight.id}</span><span className="w-20 text-mute">{f.flight.origin}→{f.flight.destination}</span>
+                      <span className={`ml-auto ${f.status === "cancelled" ? "text-coral" : f.delay ? "text-amber" : "text-mint"}`}>{f.status === "cancelled" ? "CXL" : f.delay ? `+${f.delay}m` : "on time"}</span>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
           {ui.guide && <GuideOverlay sim={sim} />}
         </section>
-        <aside className="relative flex min-h-[520px] flex-col xl:max-h-[calc(100vh-190px)]">
-          <div className="panel flex min-h-0 flex-1 flex-col p-3">
-            <div className="mb-3 grid grid-cols-3 gap-1 rounded-lg bg-night p-1 text-xs font-semibold" role="tablist">
+        <aside className="relative flex min-h-[560px] flex-col lg:col-span-2 xl:col-span-1 xl:h-[calc(100vh-200px)]">
+          <div className="panel flex min-h-0 flex-1 flex-col p-4">
+            <div className="mb-3 grid grid-cols-3 gap-1 rounded-lg bg-night p-1 text-[13px] font-semibold" role="tablist">
               {([["recovery", "Recovery"], ["ledger", "Event Ledger"], ["flights", "Flights"]] as const).map(([k, l]) => (
                 <button key={k} role="tab" aria-selected={ui.tab === k} onClick={() => ui.set({ tab: k })} className={`rounded-md py-1.5 ${ui.tab === k ? "bg-night-3 text-radar" : "text-mute hover:text-ice"}`}>{l}</button>
               ))}
@@ -67,7 +88,7 @@ export function ControlRoom() {
           </div>
           <FlightDrawer net={sim.net} result={sim.shown} compare={compare} />
         </aside>
-        <div className="h-[460px] xl:col-span-3"><Timeline net={sim.net} result={sim.shown} compare={compare} /></div>
+        <div className="h-[600px] lg:col-span-2 xl:col-span-3"><Timeline net={sim.net} result={sim.shown} compare={compare} /></div>
       </main>
       <footer className="px-4 pb-4 text-[11px] text-mute">
         Deterministic what-if model of the organisers&apos; single-day dataset (all times IST). Not a live flight network. Every number is computed by the simulation engine; AI text, when enabled, only explains engine-verified candidates.
@@ -84,7 +105,7 @@ function TopBar({ sim, stage }: { sim: Sim; stage: number }) {
   const s = sim.scenario;
   const stages = ["Create the storm", "Watch the dominoes", "Understand why", "Recover", "See the difference"];
   return (
-    <header className="flex flex-wrap items-center gap-4 px-4 py-3">
+    <header className="flex flex-wrap items-center gap-4 px-4 py-4 xl:px-6">
       <div className="flex items-baseline gap-2">
         <span className="font-display text-lg font-bold tracking-[0.08em]">DOMINO SKY</span>
         <span className="font-display text-lg font-bold tracking-[0.08em] text-radar">/ CONTROL</span>
@@ -98,9 +119,9 @@ function TopBar({ sim, stage }: { sim: Sim; stage: number }) {
       <div className="ml-auto flex items-center gap-2">
         <span className="mono hidden rounded-md border border-line px-2 py-1 text-xs lg:inline">{s.airport} closed {fmt(s.start)}–{fmt(s.end)} · {sim.applied ? (ui.view === "after" ? "recovery applied" : "showing before") : "disruption simulated"}</span>
         <button className="btn btn-primary" onClick={() => ui.set({ storyOpen: true, storyIndex: 0 })}><Clapperboard size={14} />Domino Story</button>
-        <button className={`btn ${ui.guide ? "border-amber text-amber" : ""}`} onClick={() => ui.set({ guide: !ui.guide })} aria-pressed={ui.guide}><Lightbulb size={14} />Guide me</button>
-        <button className="btn" onClick={() => ui.set({ helpOpen: true })}><HelpCircle size={14} />What am I looking at?</button>
-        <button className="btn" onClick={() => ui.reset()} aria-label="Reset to default scenario"><RotateCcw size={14} />Reset</button>
+        <button className={`btn ${ui.guide ? "border-amber text-amber" : ""}`} onClick={() => ui.set({ guide: !ui.guide })} aria-pressed={ui.guide}><Lightbulb size={14} /><span className="hidden sm:inline">Guide me</span></button>
+        <button className="btn" onClick={() => ui.set({ helpOpen: true })}><HelpCircle size={14} /><span className="hidden sm:inline">What am I looking at?</span><span className="sr-only sm:hidden">What am I looking at?</span></button>
+        <button className="btn" onClick={() => ui.reset()} aria-label="Reset to default scenario"><RotateCcw size={14} /><span className="hidden sm:inline">Reset</span></button>
       </div>
     </header>
   );
@@ -132,15 +153,15 @@ function KpiStrip({ sim }: { sim: Sim }) {
     { key: "crewDutyAlerts", label: "Crew duty alerts", sub: `${k.crewsNearLimit} crews within 30 min of limit`, tip: "Flights that would push their crew past max_duty_mins. They are not flown (no reserve crew exists); aircraft and crew stay put.", tone: "#F26E73" },
   ];
   return (
-    <div className="grid grid-cols-2 gap-3 px-4 pb-3 md:grid-cols-5">
+    <div className="grid grid-cols-2 gap-3 px-4 pb-4 md:grid-cols-5 xl:px-6">
       {items.map((it) => (
-        <div key={it.key} className="panel group relative px-4 py-3">
+        <div key={it.key} className="panel group relative px-5 py-4">
           <div className="label flex items-center gap-1">{it.label}<span title={it.tip} aria-label={it.tip}><Info size={11} className="cursor-help" /></span></div>
-          <div className="mono mt-1 flex items-baseline gap-2 text-2xl font-semibold" style={{ color: k[it.key] ? it.tone : "#78E9C4" }}>
+          <div className="mono mt-2 flex items-baseline gap-2 text-[34px] font-semibold leading-none tracking-tight" style={{ color: k[it.key] ? it.tone : "#78E9C4" }}>
             <AnimatedNumber value={k[it.key]} />
             {base && <span className="text-xs"><Delta v={k[it.key] - base[it.key]} /></span>}
           </div>
-          <div className="mt-0.5 text-[11px] text-mute">{it.sub}</div>
+          <div className="mt-2 text-xs text-mute">{it.sub}</div>
           <div className="pointer-events-none absolute left-2 right-2 top-full z-40 mt-1 hidden rounded-lg border border-line bg-night p-2 text-[11px] leading-snug text-ice/90 group-hover:block">{it.tip}</div>
         </div>
       ))}
@@ -161,7 +182,7 @@ function ScenarioPanel({ sim }: { sim: Sim }) {
   const ap = sim.net.airportById[ui.airport];
   const k = sim.disrupted.kpis;
   return (
-    <section className="panel flex flex-col gap-4 p-4" aria-label="Scenario controls">
+    <section className="panel flex flex-col gap-4 p-5 lg:row-span-1 xl:h-[calc(100vh-200px)] xl:overflow-y-auto scroll-thin" aria-label="Scenario controls">
       <div>
         <div className="label text-radar">01 · Create the storm</div>
         <p className="mt-2 font-display text-[17px] leading-snug">Imagine <span className="text-radar">{ap.city}</span> airport closes for <span className="text-radar">{fmtDur(ui.duration)}</span>. What happens to the rest of India?</p>
@@ -263,9 +284,9 @@ function QA({ q, a, empty }: { q: string; a: string[]; empty: string }) {
 
 function MapLegend() {
   return (
-    <div className="absolute bottom-3 left-4 z-10 space-y-1 rounded-lg border border-line bg-night/90 p-2 text-[10.5px] text-mute">
-      {[["#65D8EF", "Normal"], ["#F4BA65", "Delayed"], ["#F26E73", "Cancelled / closed"], ["#78E9C4", "Improved by recovery"]].map(([c, l]) => <div key={l} className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-4" style={{ background: c }} />{l}</div>)}
-      <div>Dots = aircraft airborne at the timeline time</div>
+    <div className="absolute left-4 top-9 z-10 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-mute">
+      {[["#65D8EF", "Normal"], ["#F4BA65", "Delayed"], ["#F26E73", "Cancelled / closed"], ["#78E9C4", "Improved"]].map(([c, l]) => <span key={l} className="flex items-center gap-1.5"><span className="inline-block h-0.5 w-4" style={{ background: c }} />{l}</span>)}
+      <span>① ② = highlighted aircraft legs in order · dots = airborne now</span>
     </div>
   );
 }

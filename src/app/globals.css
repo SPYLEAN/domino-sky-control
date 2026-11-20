@@ -19,8 +19,8 @@
 html, body { background: #08121f; color: #f4f8fc; }
 body { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
 
-.panel { background: linear-gradient(180deg, rgba(18,36,58,.72), rgba(12,26,44,.72)); border: 1px solid #1c3350; border-radius: 14px; }
-.label { font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: #8aa0b8; font-weight: 600; }
+.panel { background: #0b1828; border: 1px solid rgba(28,51,80,.45); border-radius: 16px; }
+.label { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #8aa0b8; font-weight: 600; }
 .mono { font-family: var(--font-mono); font-feature-settings: "zero" 1; }
 .scroll-thin::-webkit-scrollbar { width: 6px; height: 6px; }
 .scroll-thin::-webkit-scrollbar-thumb { background: #1c3350; border-radius: 6px; }

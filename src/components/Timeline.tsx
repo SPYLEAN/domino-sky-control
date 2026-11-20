@@ -41,7 +41,7 @@ export function Timeline({ net, result, compare }: { net: Network; result: Simul
   const hours = []; for (let h = Math.ceil(t0 / 60); h * 60 <= t1; h++) hours.push(h * 60);
 
   return (
-    <div className="panel flex h-full flex-col p-3">
+    <div className="panel flex h-full flex-col p-4">
       <div className="mb-2 flex items-center gap-2">
         <span className="label">Rotation timeline</span>
         <span className="mono ml-2 rounded bg-night-3 px-2 py-0.5 text-sm text-radar" aria-live="polite">{fmt(Math.round(time))} IST</span>
@@ -57,12 +57,12 @@ export function Timeline({ net, result, compare }: { net: Network; result: Simul
           </label>
         </div>
       </div>
-      <div className="relative flex-1 overflow-y-auto scroll-thin pr-1">
-        <div className="relative ml-[74px]" ref={trackRef}
+      <div className="relative flex-1 overflow-auto scroll-thin pr-1">
+        <div className="relative ml-[84px] min-w-[860px]" ref={trackRef}
           onPointerDown={(e) => { (e.target as HTMLElement).setPointerCapture?.(e.pointerId); scrubFrom(e.clientX); }}
           onPointerMove={(e) => { if (e.buttons === 1) scrubFrom(e.clientX); }}>
           <div className="sticky top-0 z-10 h-5 bg-night-2/90">
-            {hours.map((h) => <span key={h} className="mono absolute -translate-x-1/2 text-[10px] text-mute" style={{ left: pct(h) }}>{fmt(h).slice(0, 2)}</span>)}
+            {hours.map((h) => <span key={h} className="mono absolute -translate-x-1/2 text-[11px] text-mute" style={{ left: pct(h) }}>{fmt(h).slice(0, 2)}</span>)}
           </div>
           {s && <div className="absolute bottom-0 top-5 bg-coral/12 border-x border-coral/50" style={{ left: pct(s.start), width: `${((s.end - s.start) / span) * 100}%` }} title={`${s.airport} closed ${fmt(s.start)}–${fmt(s.end)}`} />}
           {tails.map((tail) => {
@@ -70,10 +70,10 @@ export function Timeline({ net, result, compare }: { net: Network; result: Simul
             const planned = result.flights.filter((f) => f.flight.tail === tail);
             const isSpare = net.aircraftByTail[tail].isSpare;
             return (
-              <div key={tail} className="relative h-[22px] border-b border-line/40">
-                <span className={`mono absolute -left-[74px] top-[3px] text-[10.5px] ${isSpare ? "text-mint" : "text-mute"}`}>{tail}{isSpare ? "*" : ""}</span>
+              <div key={tail} className="relative h-[28px] border-b border-line/30">
+                <span className={`mono absolute -left-[84px] top-[6px] text-xs ${isSpare ? "text-mint" : "text-mute"}`}>{tail}{isSpare ? "*" : ""}</span>
                 {planned.map((f) => (
-                  <div key={`g${f.flight.id}`} className="absolute top-[4px] h-[14px] rounded-[3px] border border-dashed border-ice/20"
+                  <div key={`g${f.flight.id}`} className="absolute top-[5px] h-[18px] rounded-[4px] border border-dashed border-ice/25"
                     style={{ left: pct(f.flight.dep), width: pct(t0 + f.flight.block) }} />
                 ))}
                 {legs.map((f) => {
@@ -83,7 +83,7 @@ export function Timeline({ net, result, compare }: { net: Network; result: Simul
                   return (
                     <button key={f.flight.id} onPointerDown={(e) => e.stopPropagation()}
                       onClick={() => set({ selectedFlight: f.flight.id, time: start })}
-                      className="mono absolute top-[4px] h-[14px] overflow-hidden rounded-[3px] px-1 text-left text-[9px] font-semibold leading-[14px]"
+                      className="mono absolute top-[5px] h-[18px] overflow-hidden whitespace-nowrap rounded-[4px] px-1 text-left text-[11px] font-semibold leading-[18px]"
                       style={{
                         left: pct(start), width: pct(t0 + f.flight.block),
                         background: tone === "cancelled" ? "transparent" : STATUS_COLOR[tone], color: "#08121F",
@@ -91,7 +91,7 @@ export function Timeline({ net, result, compare }: { net: Network; result: Simul
                         outline: sel ? "2px solid #F4F8FC" : undefined, opacity: tone === "normal" && !sel ? 0.55 : 1,
                       }}
                       aria-label={`${f.flight.id} ${f.flight.origin} to ${f.flight.destination}, ${f.status}${f.delay ? `, ${f.delay} minutes late` : ""}`}>
-                      <span style={{ color: tone === "cancelled" ? STATUS_COLOR.cancelled : undefined }}>{f.flight.id.slice(2)}</span>
+                      <span style={{ color: tone === "cancelled" ? STATUS_COLOR.cancelled : undefined }}>{f.flight.block >= 55 ? f.flight.id : f.flight.id.slice(2)}</span>
                     </button>
                   );
                 })}

@@ -21,7 +21,7 @@ export function StoryMode({ sim }: { sim: Sim }) {
   const winner = sim.report.winner;
   const recovered = winner.result;
   const showRecovered = ch.useRecovered && ch.key === "resolution" && recovered && winner.actions.length > 0;
-  const mapResult = showRecovered ? recovered! : sim.disrupted;
+  const mapResult = ch.key === "normal" ? sim.baselineDay : showRecovered ? recovered! : sim.disrupted;
   const ledger = ch.useRecovered && recovered ? recovered.events : sim.disrupted.events;
   const chEvents = ch.eventIds.map((id) => ledger.find((e) => e.id === id) ?? sim.disrupted.events.find((e) => e.id === id)).filter(Boolean).slice(0, 8) as typeof ledger;
   const focusEvent = eventIdx >= 0 ? chEvents[eventIdx] : null;
@@ -54,16 +54,19 @@ export function StoryMode({ sim }: { sim: Sim }) {
   useEffect(() => {
     if (!textRef.current || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const ctx = gsap.context(() => {
+      // Transform-only reveal: text is never hidden, so a throttled or skipped animation cannot blank the panel.
       const tl = gsap.timeline();
-      tl.fromTo(".st-kicker", { y: 10, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35 })
-        .fromTo(".st-head", { y: 18, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, "-=0.15")
-        .fromTo(".st-sent", { opacity: 0 }, { opacity: 1, duration: 0.4 }, "-=0.2")
-        .fromTo(".st-bullet", { x: -12, opacity: 0 }, { x: 0, opacity: 1, duration: 0.35, stagger: 0.12 }, "-=0.1");
+      tl.from(".st-head", { y: 16, duration: 0.5, ease: "power3.out" })
+        .from(".st-bullet", { x: -10, duration: 0.3, stagger: 0.08 }, "-=0.25");
+      const safety = setTimeout(() => tl.progress(1), 1500);
+      return () => clearTimeout(safety);
     }, textRef);
     return () => ctx.revert();
   }, [storyIndex]);
 
   const hiFlights = focusEvent?.flightId ? [focusEvent.flightId] : ch.flights;
+  const chainIds = (ch.key === "cascade" || ch.key === "first") && !focusEvent
+    ? [...ch.flights].sort((a, b) => mapResult.flightById[a].flight.dep - mapResult.flightById[b].flight.dep) : [];
   const hiAirports = focusEvent?.airport ? [focusEvent.airport] : ch.airports;
 
   return (
@@ -82,18 +85,33 @@ export function StoryMode({ sim }: { sim: Sim }) {
       <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[1.1fr_1fr]">
         <div className="relative min-h-[320px] border-r border-line p-4">
           <NetworkMap net={sim.net} result={mapResult} compare={showRecovered ? sim.disrupted : null} time={mapTime}
-            highlightFlights={ch.key === "normal" ? [] : hiFlights} highlightAirports={hiAirports} revealKey={ch.key === "normal" ? "story" : undefined}
+            chain={chainIds} highlightFlights={ch.key === "normal" || chainIds.length ? [] : hiFlights} highlightAirports={hiAirports} revealKey={ch.key === "normal" ? "story" : undefined}
             onSelectFlight={(id) => { set({ storyOpen: false, selectedFlight: id, time: mapResult.flightById[id].actualDep ?? mapResult.flightById[id].flight.dep, view: showRecovered ? "after" : "before", appliedId: showRecovered ? winner.id : useUi.getState().appliedId }); }} />
           <div className="mono absolute left-6 top-6 rounded-md bg-night-3/90 px-2 py-1 text-sm text-radar">{fmt(Math.round(mapTime))} IST{showRecovered ? " · after recovery" : ""}</div>
         </div>
         <div ref={textRef} className="scroll-thin flex min-h-0 flex-col overflow-y-auto p-8">
           <div className="st-kicker label text-radar">{ch.kicker}</div>
-          <h2 className="st-head mt-3 font-display text-3xl font-bold leading-tight lg:text-4xl">{ch.headline}</h2>
-          <p className="st-sent mt-4 text-lg leading-relaxed text-ice/85" aria-live="polite">{ch.sentence}</p>
+          <h2 className="st-head mt-3 font-display text-3xl font-bold leading-tight lg:text-[40px]">{ch.headline}</h2>
+          <p className="st-sent mt-4 text-xl leading-relaxed text-ice/90" aria-live="polite">{ch.sentence}</p>
           {ch.empty && <p className="mt-2 text-sm text-amber">This scenario did not produce this kind of consequence.</p>}
           <ul className="mt-5 space-y-2">
             {ch.bullets.map((b, i) => <li key={i} className="st-bullet flex gap-2 text-[14.5px] leading-snug"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-radar" />{b}</li>)}
           </ul>
+          {(ch.tails.length > 0 || ch.flights.length > 0 || ch.connections.length > 0 || ch.airports.length > 0) && (
+            <div className="mt-5">
+              <div className="label mb-2">Affected resources</div>
+              <div className="flex flex-wrap gap-1.5">
+                {ch.key === "normal"
+                  ? <><span className="chip mono">{sim.net.airports.length} airports</span><span className="chip mono">{sim.net.flights.length} flights</span><span className="chip mono">{sim.net.aircraft.filter((a) => !a.isSpare).length} aircraft + {sim.net.aircraft.filter((a) => a.isSpare).length} spares</span><span className="chip mono">{sim.net.crews.length} crews</span><span className="chip mono">{sim.net.connections.length} connection groups</span></>
+                  : <>
+                    {ch.tails.slice(0, 4).map((t) => <span key={t} className="chip mono text-radar">{t}</span>)}
+                    {ch.flights.slice(0, 10).map((f) => <button key={f} className="chip mono hover:border-radar" onClick={() => { set({ storyOpen: false, selectedFlight: f, view: showRecovered ? "after" : "before" }); }}>{f}</button>)}
+                    {ch.connections.map((c) => <span key={c} className="chip mono text-coral">{c}</span>)}
+                    {ch.flights.length === 0 && ch.airports.slice(0, 6).map((a) => <span key={a} className="chip mono">{a}</span>)}
+                  </>}
+              </div>
+            </div>
+          )}
           {ch.times.length > 0 && <div className="mt-4 flex gap-2">{ch.times.map((t) => <span key={t.label} className="chip mono">{t.label} {t.value}</span>)}</div>}
           {chEvents.length > 0 && (
             <div className="mt-6">
@@ -110,7 +128,7 @@ export function StoryMode({ sim }: { sim: Sim }) {
           )}
           {ch.evidence.length > 0 && (
             <div className="mt-4">
-              <button className="text-xs text-radar underline-offset-2 hover:underline" onClick={() => setEvidence(!evidence)}>{evidence ? "Hide" : "Show"} the proof</button>
+              <button className="text-sm font-semibold text-radar underline-offset-2 hover:underline" onClick={() => setEvidence(!evidence)} aria-expanded={evidence}>{evidence ? "Hide" : "Show"} the proof ({ch.evidence.length} engine line{ch.evidence.length > 1 ? "s" : ""})</button>
               {evidence && <ol className="mono mt-2 space-y-1 rounded-lg bg-night-2 p-3 text-[11.5px] text-ice/85">{ch.evidence.map((l, i) => <li key={i}>{l}</li>)}</ol>}
             </div>
           )}

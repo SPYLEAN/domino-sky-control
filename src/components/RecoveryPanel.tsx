@@ -75,38 +75,49 @@ export function RecoveryPanel({ sim }: { sim: Sim }) {
 function CandidateCard({ c, winner, applied }: { c: Candidate; winner: boolean; applied: boolean }) {
   const set = useUi((s) => s.set);
   const [open, setOpen] = useState(false);
+  const benefits = METRICS.filter((m) => (c.delta[m.k] ?? 0) < 0);
+  const costs = METRICS.filter((m) => (c.delta[m.k] ?? 0) > 0);
   return (
-    <div className={`rounded-xl border p-3 transition ${applied ? "border-mint bg-mint/5" : winner ? "border-radar/70" : "border-line"}`}>
-      <div className="flex items-start gap-2">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 text-[11px]">
-            <span className="mono text-mute">#{c.rank}</span>
-            {winner && <span className="chip border-radar text-radar">Recommended</span>}
-            {c.improves ? <span className="chip border-mint/60 text-mint">Improves</span> : c.actions.length ? <span className="chip text-mute">No gain</span> : null}
-          </div>
-          <div className="mt-1 text-sm font-semibold">{c.title}</div>
-          <p className="mt-0.5 text-[12px] leading-snug text-mute">{c.summary}</p>
-        </div>
+    <div className={`rounded-2xl p-4 transition ${applied ? "bg-mint/10 ring-1 ring-mint" : winner ? "bg-night-3/60 ring-1 ring-radar/60" : "bg-night-3/30"}`}>
+      <div className="flex items-center gap-2 text-[11px]">
+        <span className="mono text-mute">#{c.rank}</span>
+        {winner && <span className="chip border-radar text-radar">Recommended</span>}
+        {c.improves ? <span className="chip border-mint/60 text-mint">Improves objective</span> : c.actions.length ? <span className="chip text-mute">No gain</span> : <span className="chip text-mute">Baseline</span>}
       </div>
-      <div className="mono mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px]">
-        {METRICS.slice(0, 4).map((m) => <div key={m.k} className="flex justify-between"><span className="text-mute">{m.label}</span><Delta v={c.delta[m.k]} /></div>)}
-      </div>
-      <div className="mt-2 flex items-center gap-2">
-        {c.actions.length > 0 && (
-          applied
-            ? <button className="btn" onClick={() => set({ appliedId: null, view: "before" })}><X size={13} />Remove plan</button>
-            : <button className="btn btn-mint" onClick={() => set({ appliedId: c.id, view: "after", selectedFlight: null })}><Check size={13} />Apply plan</button>
+      <Step n="Action"><div className="text-[15px] font-semibold leading-snug">{c.title}</div><p className="mt-1 text-[12.5px] leading-snug text-mute">{c.summary}</p></Step>
+      <Step n="Verified benefit">
+        {benefits.length ? benefits.map((m) => <Line key={m.k} label={m.label} v={c.delta[m.k]!} before={c.kpis![m.k] - c.delta[m.k]!} after={c.kpis![m.k]} />) : <p className="text-[12.5px] text-mute">{c.actions.length ? "No metric improves." : "Leaves the disrupted day exactly as simulated."}</p>}
+      </Step>
+      <Step n="Trade-off">
+        {costs.length ? costs.map((m) => <Line key={m.k} label={m.label} v={c.delta[m.k]!} before={c.kpis![m.k] - c.delta[m.k]!} after={c.kpis![m.k]} />) : <p className="text-[12.5px] text-mute">No metric gets worse.</p>}
+      </Step>
+      <Step n="Proof">
+        <button className="text-[12px] text-radar underline-offset-2 hover:underline" onClick={() => setOpen(!open)} aria-expanded={open}>
+          {c.checks.filter((k) => k.passed).length}/{c.checks.length} feasibility checks passed · full re-simulation · {open ? "hide" : "show"}
+        </button>
+        {open && (
+          <ul className="mt-2 space-y-1 text-[11.5px]">
+            {c.checks.map((k, i) => <li key={i} className="flex gap-1.5"><ShieldCheck size={12} className={k.passed ? "mt-0.5 shrink-0 text-mint" : "mt-0.5 shrink-0 text-coral"} /><span><span className="mono">{k.rule}</span> — {k.detail}</span></li>)}
+            <li className="mono break-all text-mute">candidate {c.id}</li>
+          </ul>
         )}
-        <button className="text-[11px] text-mute underline-offset-2 hover:text-ice hover:underline" onClick={() => setOpen(!open)}>{open ? "Hide" : "Show"} feasibility checks</button>
-      </div>
-      {open && (
-        <ul className="mt-2 space-y-1 text-[11px]">
-          {c.checks.map((k, i) => <li key={i} className="flex gap-1.5"><ShieldCheck size={12} className={k.passed ? "mt-0.5 text-mint" : "mt-0.5 text-coral"} /><span><span className="mono">{k.rule}</span> — {k.detail}</span></li>)}
-          <li className="mono text-mute">id {c.id}</li>
-        </ul>
+      </Step>
+      {c.actions.length > 0 && (
+        <div className="mt-3">
+          {applied
+            ? <button className="btn" onClick={() => set({ appliedId: null, view: "before" })}><X size={13} />Remove plan</button>
+            : <button className="btn btn-mint" onClick={() => set({ appliedId: c.id, view: "after", selectedFlight: null })}><Check size={13} />Apply plan</button>}
+        </div>
       )}
     </div>
   );
+}
+
+function Step({ n: label, children }: { n: string; children: React.ReactNode }) {
+  return <div className="mt-3 border-l-2 border-line pl-3"><div className="label mb-1">{label}</div>{children}</div>;
+}
+function Line({ label, v, before, after }: { label: string; v: number; before: number; after: number }) {
+  return <div className="mono flex items-baseline justify-between gap-2 text-[12.5px]"><span className="font-sans text-ice/85">{label}</span><span className="text-mute">{n(before)} → {n(after)}</span><span className="w-20 text-right font-semibold"><Delta v={v} /></span></div>;
 }
 
 interface AiResult { source: "gemini" | "rules"; recommendedCandidateId: string; headline: string; rationale: string; tradeoffs: string[]; note?: string }

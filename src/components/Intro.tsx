@@ -28,9 +28,11 @@ export function Intro({ sim }: { sim: Sim }) {
     if (!ref.current) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const ctx = gsap.context(() => {
-      if (reduce) { gsap.set(".intro-line", { opacity: 1 }); return; }
-      gsap.fromTo(".intro-line", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.55, ease: "power3.out" });
-      gsap.fromTo(".intro-domino", { rotate: 0 }, { rotate: 22, duration: 0.35, stagger: 0.55, ease: "power2.in", transformOrigin: "100% 100%", delay: 0.2 });
+      if (reduce) return;
+      const tl = gsap.timeline(); tl.from(".intro-line", { opacity: 0.25, y: 12, duration: 0.45, stagger: 0.4, ease: "power3.out" });
+      tl.fromTo(".intro-domino", { rotate: 0 }, { rotate: 22, duration: 0.3, stagger: 0.4, ease: "power2.in", transformOrigin: "100% 100%" }, 0.15);
+      const safety = setTimeout(() => tl.progress(1), 3500);
+      return () => clearTimeout(safety);
     }, ref);
     return () => ctx.revert();
   }, []);
@@ -41,7 +43,7 @@ export function Intro({ sim }: { sim: Sim }) {
         <div className="label text-radar">The Domino Effect · computed from the live simulation below</div>
         <ol className="mt-6 space-y-3">
           {lines.map(([a, b], i) => (
-            <li key={i} className="intro-line flex items-center gap-4 opacity-0">
+            <li key={i} className="intro-line flex items-center gap-4">
               <span className="intro-domino mr-2 inline-block h-8 w-3 shrink-0 rounded-sm" style={{ background: i === 5 ? "#78E9C4" : i === 0 ? "#F26E73" : "#F4BA65" }} />
               <span className="font-display text-2xl font-semibold">{a}</span>
               <span className="mono ml-auto text-right text-sm text-mute">{b}</span>

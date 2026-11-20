@@ -1,4 +1,5 @@
 import type { RecoveryReport } from "./recovery";
+import { simulate } from "./simulate";
 import { fmt, fmtDur } from "./time";
 import type { Network, SimulationEvent, SimulationResult } from "./types";
 
@@ -46,7 +47,16 @@ export function buildStory(net: Network, r: SimulationResult, rep: RecoveryRepor
       "Baseline check: every turnaround, connection and crew duty in the dataset is legal.",
     ],
     airports: net.airports.map((a) => a.id),
+    tails: net.aircraft.map((a) => a.tail),
     focusTime: s.start - 60,
+    evidence: (() => {
+      const b = simulate(net, null);
+      return [
+        `Baseline re-simulation (no closure): ${b.flights.filter((f) => f.status === "on_time").length}/${b.flights.length} flights on time.`,
+        `Invariant checker on baseline: ${b.violations.length} violations (turnaround ≥ ${net.minTurnaround} min, no teleporting, crew duty ≤ limit).`,
+        `Connections made on baseline: ${b.connections.filter((c) => c.status === "made").length}/${b.connections.length}.`,
+      ];
+    })(),
   });
 
   // 2 — The crisis
@@ -64,6 +74,8 @@ export function buildStory(net: Network, r: SimulationResult, rep: RecoveryRepor
     airports: [s.airport], flights: scheduledThere.map((f) => f.id), eventIds: [closureEv.id],
     times: [{ label: "Closes", value: fmt(s.start) }, { label: "Reopens", value: fmt(s.end) }],
     window: [s.start, s.end], focusTime: s.start, empty: scheduledThere.length === 0,
+    evidence: [`Closure interval [${fmt(s.start)}, ${fmt(s.end)}) at ${s.airport}: a departure or arrival at time t is blocked when ${fmt(s.start)} ≤ t < ${fmt(s.end)}.`,
+      ...scheduledThere.map((f) => `${f.id} scheduled ${fmt(f.dep)}–${fmt(f.arr)} (${f.origin}→${f.destination}) intersects the closure.`)],
   });
 
   // 3 — First domino
@@ -90,7 +102,7 @@ export function buildStory(net: Network, r: SimulationResult, rep: RecoveryRepor
     chapters.push({
       ...blank, index: 3, key: "first", kicker: "Scene 03 · The first domino",
       headline: "No flight is directly constrained.", sentence: "No scheduled departure or arrival at the closed airport falls inside the closure, so nothing has to move.",
-      empty: true, focusTime: s.start,
+      empty: true, focusTime: s.start, evidence: ["No closure_constraint events were emitted for this scenario."], airports: [s.airport],
     });
   }
 
@@ -111,9 +123,11 @@ export function buildStory(net: Network, r: SimulationResult, rep: RecoveryRepor
         ...chain.map((f) => f.status === "cancelled"
           ? `${f.flight.id} ${f.flight.origin}→${f.flight.destination}: cancelled (${f.cancelReason?.replace(/_/g, " ")}).`
           : `${f.flight.id} ${f.flight.origin}→${f.flight.destination}: ${fmt(f.flight.dep)} → ${fmt(f.actualDep)} (+${f.delay} min).`),
+        ...(Object.keys(byTail).length > 1 ? [`Other aircraft carrying knock-on delay: ${Object.keys(byTail).filter((t) => t !== chainTail).sort().map((t) => `${t} (${byTail[t].map((e) => e.flightId).join(", ")})`).join("; ")}.`] : []),
         `Across the network, ${outside.length} affected flight${outside.length === 1 ? "" : "s"} never touch ${s.airport}; ${Object.keys(byTail).length} aircraft carry knock-on delays.`,
       ],
-      flights: chain.map((f) => f.flight.id), tails: [chainTail], airports: cities,
+      flights: r.flights.filter((f) => f.tail === chainTail).map((f) => f.flight.id), tails: [chainTail], airports: cities,
+      evidence: chain.filter((f) => f.evidence).map((f) => `${f.flight.id}: ${f.evidence!.formulas[f.evidence!.binding === "aircraft_rotation" ? 0 : 2]} → departs ${fmt(f.actualDep)}`),
       eventIds: chain.flatMap((f) => f.eventIds),
       window: [chain[0].flight.dep, Math.max(...chain.map((f) => f.actualArr ?? f.flight.arr))],
       focusTime: chain[chain.length - 1].actualDep ?? chain[chain.length - 1].flight.dep,
@@ -124,7 +138,7 @@ export function buildStory(net: Network, r: SimulationResult, rep: RecoveryRepor
       headline: "The ripple stops here.",
       sentence: `Every aircraft hit by the closure had enough spare ground time to absorb the delay before its next flight. No later flight was pushed back by a late aircraft.`,
       bullets: outside.length ? [`${outside.length} flights away from ${s.airport} are still affected.`] : [],
-      empty: true, focusTime: s.end,
+      empty: true, focusTime: s.end, evidence: ["No rotation_propagation or aircraft-continuity events were emitted for this scenario."],
     });
   }
 
@@ -199,8 +213,9 @@ export function buildStory(net: Network, r: SimulationResult, rep: RecoveryRepor
         still.length ? `Still affected: ${still.map((c) => `${c.connection.id} (${c.connection.passengers} pax)`).join(", ")}.` : "No passenger connection remains broken.",
       ],
       flights: w.actions.flatMap((x) => x.flightIds),
-      eventIds: (w.result?.events ?? []).slice(0, 40).map((e) => e.id),
+      eventIds: (w.result?.events ?? []).filter((e) => e.type === "recovery_assignment" || e.type === "connection_missed" || e.type === "flight_cancelled").map((e) => e.id),
       useRecovered: true, focusTime: s.end,
+      evidence: ["Each figure = KPI of a full re-simulation with the plan applied − KPI of the untreated disruption (both deterministic).", `Plan id: ${w.id}`],
     });
   }
   void byId;
