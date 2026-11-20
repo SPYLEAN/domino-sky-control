@@ -44,7 +44,7 @@ export function Timeline({ net, result, compare, focusTail }: { net: Network; re
 
   return (
     <div className="panel flex max-h-[600px] flex-col p-4">
-      <div className="mb-2 flex items-center gap-2">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
         <span className="label">Rotation timeline</span>
         <span className="mono ml-2 rounded bg-night-3 px-2 py-0.5 text-sm text-radar" aria-live="polite">{fmt(Math.round(time))} IST</span>
         <button className="chip hover:border-radar" onClick={() => setFleet(!fleet)} aria-expanded={fleet}>{fleet || !focusTail ? `Full fleet · ${allTails.length} aircraft` : `Showing ${focusTail} · expand full fleet`}</button>
