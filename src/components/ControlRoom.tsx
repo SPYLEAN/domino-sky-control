@@ -13,6 +13,7 @@ import { Timeline } from "./Timeline";
 import { FlightDrawer } from "./FlightDrawer";
 import { RecoveryPanel, METRICS, Delta } from "./RecoveryPanel";
 import { EventLedger } from "./EventLedger";
+import { IncidentBrief } from "./IncidentBrief";
 import { StoryMode } from "./StoryMode";
 import { Intro } from "./Intro";
 
@@ -75,12 +76,13 @@ export function ControlRoom() {
         </section>
         <aside className="relative flex min-h-[560px] flex-col lg:col-span-2 xl:col-span-1 xl:h-[calc(100vh-200px)]">
           <div className="panel flex min-h-0 flex-1 flex-col p-4">
-            <div className="mb-3 grid grid-cols-3 gap-1 rounded-lg bg-night p-1 text-[13px] font-semibold" role="tablist">
-              {([["recovery", "Recovery"], ["ledger", "Event Ledger"], ["flights", "Flights"]] as const).map(([k, l]) => (
+            <div className="mb-4 grid grid-cols-4 gap-1 rounded-lg bg-night p-1 text-[13px] font-semibold" role="tablist">
+              {([["brief", "Incident"], ["recovery", "Recovery"], ["ledger", "Ledger"], ["flights", "Flights"]] as const).map(([k, l]) => (
                 <button key={k} role="tab" aria-selected={ui.tab === k} onClick={() => ui.set({ tab: k })} className={`rounded-md py-1.5 ${ui.tab === k ? "bg-night-3 text-radar" : "text-mute hover:text-ice"}`}>{l}</button>
               ))}
             </div>
             <div className="scroll-thin min-h-0 flex-1 overflow-y-auto pr-1">
+              {ui.tab === "brief" && <IncidentBrief sim={sim} />}
               {ui.tab === "recovery" && <><RecoveryPanel sim={sim} />{sim.applied && <BeforeAfter sim={sim} />}</>}
               {ui.tab === "ledger" && <EventLedger result={sim.shown} />}
               {ui.tab === "flights" && <FlightList sim={sim} />}
@@ -152,9 +154,13 @@ function KpiStrip({ sim }: { sim: Sim }) {
     { key: "missedConnectionPax", label: "Missed-connection passengers", sub: `${k.missedConnectionGroups} of ${sim.net.connections.length} groups broken`, tip: "Passengers in connection groups whose onward flight leaves before inbound arrival + minimum connection time, or where either leg is cancelled.", tone: "#F26E73" },
     { key: "crewDutyAlerts", label: "Crew duty alerts", sub: `${k.crewsNearLimit} crews within 30 min of limit`, tip: "Flights that would push their crew past max_duty_mins. They are not flown (no reserve crew exists); aircraft and crew stay put.", tone: "#F26E73" },
   ];
+  const [details, setDetails] = useState(false);
+  const primary = [items[0], items[2], items[1]];
+  const shownItems = details ? [...primary, items[3], items[4]] : primary;
   return (
-    <div className="grid grid-cols-2 gap-3 px-4 pb-4 md:grid-cols-5 xl:px-6">
-      {items.map((it) => (
+    <div className="px-4 pb-4 xl:px-6">
+    <div className={`grid grid-cols-1 gap-3 sm:grid-cols-3 ${details ? "md:grid-cols-5" : ""}`}>
+      {shownItems.map((it) => (
         <div key={it.key} className="panel group relative px-5 py-4">
           <div className="label flex items-center gap-1">{it.label}<span title={it.tip} aria-label={it.tip}><Info size={11} className="cursor-help" /></span></div>
           <div className="mono mt-2 flex items-baseline gap-2 text-[34px] font-semibold leading-none tracking-tight" style={{ color: k[it.key] ? it.tone : "#78E9C4" }}>
@@ -165,6 +171,8 @@ function KpiStrip({ sim }: { sim: Sim }) {
           <div className="pointer-events-none absolute left-2 right-2 top-full z-40 mt-1 hidden rounded-lg border border-line bg-night p-2 text-[11px] leading-snug text-ice/90 group-hover:block">{it.tip}</div>
         </div>
       ))}
+    </div>
+    <button className="mt-2 text-xs text-radar hover:underline" onClick={() => setDetails(!details)} aria-expanded={details}>{details ? "Hide details" : `Details: missed connections (${n(k.missedConnectionPax)} pax) · crew duty alerts (${k.crewDutyAlerts})`}</button>
     </div>
   );
 }
@@ -205,14 +213,14 @@ function ScenarioPanel({ sim }: { sim: Sim }) {
       </div>
       {problems.length > 0 && <p className="text-xs text-coral" role="alert">{problems.join(" ")}</p>}
       <button className="btn btn-primary justify-center py-2.5 text-sm" disabled={problems.length > 0} onClick={() => { const st = parseHHMM(startText); ui.set({ start: st }); ui.simulate(); }}>
-        <Zap size={15} />Simulate Disruption
+        <Zap size={15} />{dirty ? "Run new scenario" : "Re-run this scenario"}
       </button>
       <div className="flex flex-wrap gap-1.5 text-[11px]">
         {[["BOM", "08:00", 90], ["BLR", "12:00", 120], ["DEL", "15:00", 90], ["CCU", "18:00", 90], ["HYD", "11:00", 120]].map(([a, t, d]) => (
           <button key={`${a}${t}`} className="chip hover:border-radar" onClick={() => { ui.set({ airport: a as string, start: parseHHMM(t as string), duration: d as number }); setTimeout(() => useUi.getState().simulate(), 0); }}>{a} {t} · {fmtDur(d as number)}</button>
         ))}
       </div>
-      {dirty && <p className="text-[11px] text-amber">Inputs changed — press Simulate Disruption to recompute.</p>}
+      {dirty ? <p className="text-xs text-amber">Inputs changed — run the new scenario to recompute.</p> : <p className="text-xs text-mint">✓ Simulated: {sim.net.airportById[sim.scenario.airport].city} {fmt(sim.scenario.start)}–{fmt(sim.scenario.end)}. Results below are computed.</p>}
       <div className="border-t border-line pt-3">
         <div className="label">02 · What happened</div>
         <ul className="mt-2 space-y-1.5 text-[12.5px] leading-snug">

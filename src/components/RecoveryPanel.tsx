@@ -25,6 +25,7 @@ export function RecoveryPanel({ sim }: { sim: Sim }) {
   const { report } = sim;
   const { appliedId, strategy, set } = useUi();
   const [journalOpen, setJournalOpen] = useState(false);
+  const [othersOpen, setOthersOpen] = useState(false);
   const shortlist = report.ranked.filter((c) => !c.sameOutcomeAs || c.id === "C-NONE").slice(0, 5);
   if (!shortlist.includes(report.noneCandidate)) shortlist.push(report.noneCandidate);
 
@@ -45,7 +46,13 @@ export function RecoveryPanel({ sim }: { sim: Sim }) {
       </div>
       <p className="text-[11px] text-mute">Best evaluated recovery under the displayed search scope — not a proof of global optimality.</p>
 
-      {shortlist.map((c) => <CandidateCard key={c.id} c={c} winner={c.id === report.winner.id} applied={appliedId === c.id} />)}
+      {report.winner.actions.length === 0 && <p className="rounded-xl bg-night-3/50 p-3 text-[15px] leading-relaxed">No evaluated plan beats leaving the schedule as it is under this objective. The honest recommendation is to change nothing.</p>}
+      <CandidateCard c={report.winner} winner applied={appliedId === report.winner.id} />
+      {appliedId && appliedId !== report.winner.id && (() => { const a = report.candidates.find((c) => c.id === appliedId); return a ? <CandidateCard c={a} winner={false} applied /> : null; })()}
+      <button className="w-full rounded-xl bg-night-3/40 px-3 py-2 text-left text-sm font-semibold hover:bg-night-3/70" onClick={() => setOthersOpen(!othersOpen)} aria-expanded={othersOpen}>
+        {othersOpen ? "Hide" : "Compare"} {shortlist.filter((c) => c.id !== report.winner.id).length} other evaluated plans
+      </button>
+      {othersOpen && shortlist.filter((c) => c.id !== report.winner.id && c.id !== appliedId).map((c) => <CandidateCard key={c.id} c={c} winner={false} applied={false} />)}
 
       <AiDispatcher sim={sim} />
 
@@ -84,14 +91,15 @@ function CandidateCard({ c, winner, applied }: { c: Candidate; winner: boolean; 
         {winner && <span className="chip border-radar text-radar">Recommended</span>}
         {c.improves ? <span className="chip border-mint/60 text-mint">Improves objective</span> : c.actions.length ? <span className="chip text-mute">No gain</span> : <span className="chip text-mute">Baseline</span>}
       </div>
-      <Step n="Action"><div className="text-[15px] font-semibold leading-snug">{c.title}</div><p className="mt-1 text-[12.5px] leading-snug text-mute">{c.summary}</p></Step>
+      <Step n={winner ? "Recommended action" : "Action"}><div className="text-[15px] font-semibold leading-snug">{c.title}</div><p className="mt-1 text-[12.5px] leading-snug text-mute">{c.summary}</p></Step>
       <Step n="Verified benefit">
         {benefits.length ? benefits.map((m) => <Line key={m.k} label={m.label} v={c.delta[m.k]!} before={c.kpis![m.k] - c.delta[m.k]!} after={c.kpis![m.k]} />) : <p className="text-[12.5px] text-mute">{c.actions.length ? "No metric improves." : "Leaves the disrupted day exactly as simulated."}</p>}
       </Step>
       <Step n="Trade-off">
         {costs.length ? costs.map((m) => <Line key={m.k} label={m.label} v={c.delta[m.k]!} before={c.kpis![m.k] - c.delta[m.k]!} after={c.kpis![m.k]} />) : <p className="text-[12.5px] text-mute">No metric gets worse.</p>}
       </Step>
-      <Step n="Proof">
+      <Step n="Why this plan?">
+        <p className="mb-1 text-[12.5px] leading-snug text-mute">{c.rank === 1 ? "Ranked first" : `Ranked #${c.rank}`} under the selected objective after a full re-simulation. Best evaluated recovery under the displayed search scope.</p>
         <button className="text-[12px] text-radar underline-offset-2 hover:underline" onClick={() => setOpen(!open)} aria-expanded={open}>
           {c.checks.filter((k) => k.passed).length}/{c.checks.length} feasibility checks passed · full re-simulation · {open ? "hide" : "show"}
         </button>
@@ -106,7 +114,7 @@ function CandidateCard({ c, winner, applied }: { c: Candidate; winner: boolean; 
         <div className="mt-3">
           {applied
             ? <button className="btn" onClick={() => set({ appliedId: null, view: "before" })}><X size={13} />Remove plan</button>
-            : <button className="btn btn-mint" onClick={() => set({ appliedId: c.id, view: "after", selectedFlight: null })}><Check size={13} />Apply plan</button>}
+            : <button className="btn btn-mint" onClick={() => set({ appliedId: c.id, view: "after", selectedFlight: null })}><Check size={13} />Apply Recovery Plan</button>}
         </div>
       )}
     </div>

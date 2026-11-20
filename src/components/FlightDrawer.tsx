@@ -8,6 +8,7 @@ import { fmt } from "@/engine/time";
 import type { Network, SimulationResult } from "@/engine/types";
 import { useUi } from "@/lib/store";
 import { STATUS_COLOR, flightTone } from "./NetworkMap";
+import { JourneyLab } from "./JourneyLab";
 
 const BINDING_LABEL: Record<string, string> = {
   schedule: "Scheduled time (no constraint)", aircraft_rotation: "Late inbound aircraft + 30-min turnaround",
@@ -17,12 +18,12 @@ const BINDING_LABEL: Record<string, string> = {
 };
 
 export function FlightDrawer({ net, result, compare }: { net: Network; result: SimulationResult; compare: SimulationResult | null }) {
-  const { selectedFlight, set } = useUi();
+  const { selectedFlight, set, tab } = useUi();
   const [layer, setLayer] = useState<1 | 2 | 3>(1);
   const sim = selectedFlight ? result.flightById[selectedFlight] : null;
   return (
     <AnimatePresence>
-      {sim && (
+      {sim && tab !== "brief" && (
         <motion.aside key="drawer" initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 40, opacity: 0 }} transition={{ duration: 0.22 }}
           className="panel absolute inset-0 z-30 flex flex-col overflow-hidden bg-night-2" role="dialog" aria-label={`Flight DNA for ${sim.flight.id}`}>
           <Body net={net} result={result} compare={compare} fid={sim.flight.id} layer={layer} setLayer={setLayer} onClose={() => set({ selectedFlight: null })} />
@@ -81,6 +82,7 @@ function Body({ net, result, compare, fid, layer, setLayer, onClose }: { net: Ne
         {layer === 1 && (
           <div className="space-y-3">
             <p className="text-[15px]">{x.what}</p>
+            <JourneyLab sim={sim} />
             {x.connections.length > 0 && (
               <div className="space-y-1.5">
                 <div className="label">Passenger connections</div>

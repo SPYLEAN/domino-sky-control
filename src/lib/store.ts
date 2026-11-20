@@ -2,7 +2,7 @@
 import { create } from "zustand";
 import type { Strategy } from "@/engine/recovery";
 
-export type RightTab = "recovery" | "ledger" | "flights";
+export type RightTab = "brief" | "recovery" | "ledger" | "flights";
 
 interface UiState {
   airport: string;
@@ -43,7 +43,7 @@ export const useUi = create<UiState>((set, get) => ({
   time: DEFAULT.start,
   playing: false,
   speed: 4,
-  tab: "recovery",
+  tab: "brief",
   storyOpen: false,
   storyIndex: 0,
   introOpen: false,
@@ -54,7 +54,7 @@ export const useUi = create<UiState>((set, get) => ({
     const { airport, start, duration, scenarioKey } = get();
     set({
       committed: { airport, start, end: start + duration }, scenarioKey: scenarioKey + 1, appliedId: null, view: "before",
-      selectedFlight: null, selectedEvent: null, time: start, playing: false,
+      selectedFlight: null, selectedEvent: null, time: start, playing: false, tab: "brief",
     });
   },
   reset: () => set({
