@@ -1,18 +1,20 @@
 "use client";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Pause, Play, RotateCcw } from "lucide-react";
 import type { Network, SimulationResult } from "@/engine/types";
 import { fmt } from "@/engine/time";
 import { useUi } from "@/lib/store";
 import { STATUS_COLOR, flightTone } from "./NetworkMap";
 
-export function Timeline({ net, result, compare }: { net: Network; result: SimulationResult; compare: SimulationResult | null }) {
+export function Timeline({ net, result, compare, focusTail }: { net: Network; result: SimulationResult; compare: SimulationResult | null; focusTail?: string | null }) {
+  const [fleet, setFleet] = useState(false);
   const { time, playing, speed, selectedFlight, set } = useUi();
   const s = result.scenario;
   const t0 = 300;
   const t1 = Math.max(1380, ...result.flights.map((f) => (f.actualArr ?? 0) + 20));
   const span = t1 - t0;
-  const tails = useMemo(() => net.aircraft.map((a) => a.tail), [net]);
+  const allTails = useMemo(() => net.aircraft.map((a) => a.tail), [net]);
+  const tails = fleet || !focusTail ? allTails : [focusTail];
   const trackRef = useRef<HTMLDivElement>(null);
   const raf = useRef<number | null>(null);
 
@@ -41,10 +43,11 @@ export function Timeline({ net, result, compare }: { net: Network; result: Simul
   const hours = []; for (let h = Math.ceil(t0 / 60); h * 60 <= t1; h++) hours.push(h * 60);
 
   return (
-    <div className="panel flex h-full flex-col p-4">
+    <div className="panel flex max-h-[600px] flex-col p-4">
       <div className="mb-2 flex items-center gap-2">
         <span className="label">Rotation timeline</span>
         <span className="mono ml-2 rounded bg-night-3 px-2 py-0.5 text-sm text-radar" aria-live="polite">{fmt(Math.round(time))} IST</span>
+        <button className="chip hover:border-radar" onClick={() => setFleet(!fleet)} aria-expanded={fleet}>{fleet || !focusTail ? `Full fleet · ${allTails.length} aircraft` : `Showing ${focusTail} · expand full fleet`}</button>
         <div className="ml-auto flex items-center gap-1.5">
           <button className="btn" onClick={() => set({ playing: !playing, time: time >= t1 ? t0 : time })} aria-label={playing ? "Pause playback" : "Play playback"}>
             {playing ? <Pause size={14} /> : <Play size={14} />}{playing ? "Pause" : "Play"}

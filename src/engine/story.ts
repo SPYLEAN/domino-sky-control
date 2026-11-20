@@ -184,7 +184,7 @@ export function buildStory(net: Network, r: SimulationResult, rep: RecoveryRepor
       ...blank, index: 6, key: "dispatcher", kicker: "Scene 06 · The dispatcher",
       headline: userChoice ? `Applied by you: ${w.title}.` : w.actions.length ? `Recommended: ${w.title}.` : "Recommended: change nothing.",
       sentence: w.actions.length
-        ? `The dispatcher simulated ${rep.stats.simulated} plans in full and ranked the ${rep.stats.feasible} feasible ones by its objective. ${w.title} ranked first.`
+        ? `The dispatcher simulated ${rep.stats.simulated} plans in full and ranked the ${rep.stats.feasible} feasible ones by its objective. ${w.title} ranked #${w.rank}${userChoice ? " — you chose it over the #1 recommendation" : ""}.`
         : `The dispatcher simulated ${rep.stats.simulated} plans in full. None of them beat the untreated schedule under the objective, so the honest answer is to leave it.`,
       bullets: [
         ...(userChoice ? [`You applied plan #${w.rank}. The dispatcher's recommendation under this objective was #1: ${rep.winner.title}.`] : []),

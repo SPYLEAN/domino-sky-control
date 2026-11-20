@@ -90,7 +90,7 @@ export function ControlRoom() {
           </div>
           <FlightDrawer net={sim.net} result={sim.shown} compare={compare} />
         </aside>
-        <div className="h-[600px] lg:col-span-2 xl:col-span-3"><Timeline net={sim.net} result={sim.shown} compare={compare} /></div>
+        <div className="lg:col-span-2 xl:col-span-3"><Timeline net={sim.net} result={sim.shown} compare={compare} focusTail={chainTail} /></div>
       </main>
       <footer className="px-4 pb-4 text-[11px] text-mute">
         Deterministic what-if model of the organisers&apos; single-day dataset (all times IST). Not a live flight network. Every number is computed by the simulation engine; AI text, when enabled, only explains engine-verified candidates.

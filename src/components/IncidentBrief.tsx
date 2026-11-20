@@ -24,7 +24,10 @@ export function IncidentBrief({ sim }: { sim: Sim }) {
   const closure = ev.find((e) => e.type === "closure_start") ?? null;
   const first = ev.filter((e) => e.type === "closure_constraint").sort((a, b) => a.time - b.time || a.seq - b.seq)[0] ?? null;
   const firstSim = first ? r.flightById[first.flightId!] : null;
-  const prop = ev.filter((e) => e.type === "rotation_propagation" || (e.type === "flight_cancelled" && e.rule === "aircraft.continuity")).sort((a, b) => a.time - b.time || a.seq - b.seq)[0] ?? null;
+  const props = ev.filter((e) => e.type === "rotation_propagation" || (e.type === "flight_cancelled" && e.rule === "aircraft.continuity")).sort((a, b) => a.time - b.time || a.seq - b.seq);
+  const sameChain = firstSim ? props.find((e) => r.flightById[e.flightId!].tail === firstSim.tail) : undefined;
+  const prop = sameChain ?? props[0] ?? null;
+  const otherAircraft = !!prop && !!firstSim && !sameChain;
   const propSim = prop ? r.flightById[prop.flightId!] : null;
   const parent = prop?.parentId ? ev.find((e) => e.id === prop.parentId) : null;
   const human = ev.filter((e) => e.type === "connection_missed" || e.type === "crew_infeasible").sort((a, b) => a.time - b.time || a.seq - b.seq)[0] ?? null;
@@ -36,13 +39,13 @@ export function IncidentBrief({ sim }: { sim: Sim }) {
       proof: closure ? [`${closure.id} · rule ${closure.rule}`, `Blocked when ${fmt(s.start)} ≤ t < ${fmt(s.end)} at ${s.airport}`] : [],
     },
     firstSim && first ? {
-      n: "02", title: "The first domino", tone: "#F4BA65", event: first, flight: firstSim.flight.id, time: firstSim.actualDep ?? firstSim.flight.dep,
+      n: "02", title: "The first domino", tone: "#F4BA65", event: first, flight: firstSim.flight.id, time: first.time,
       text: `${firstSim.flight.id} ${firstSim.flight.origin}→${firstSim.flight.destination}: ${first.explanation}`,
       proof: [`${first.id} · rule ${first.rule}`, ...(firstSim.evidence?.formulas ?? [])],
     } : { n: "02", title: "The first domino", tone: "#78E9C4", event: null, flight: null, time: s.start, text: "No scheduled flight touches the closed airport during this window, so nothing is directly constrained.", proof: [] },
     propSim && prop ? {
-      n: "03", title: "The cascade", tone: "#F4BA65", event: prop, flight: propSim.flight.id, time: propSim.actualDep ?? propSim.flight.dep,
-      text: `${prop.explanation}${parent?.flightId && parent.flightId !== propSim.flight.id ? ` The cause traces back to ${parent.flightId}.` : ""}`,
+      n: "03", title: "The cascade", tone: "#F4BA65", event: prop, flight: propSim.flight.id, time: prop.time,
+      text: `${otherAircraft ? `The first domino's aircraft absorbed its delay; the first knock-on happens on a different aircraft, ${propSim.tail}. ` : ""}${prop.explanation}${parent?.flightId && parent.flightId !== propSim.flight.id ? ` The cause traces back to ${parent.flightId}.` : ""}`,
       proof: [`${prop.id} · rule ${prop.rule} · parent ${prop.parentId ?? "—"}`, ...(propSim.evidence?.formulas ?? [])],
     } : { n: "03", title: "The cascade", tone: "#78E9C4", event: null, flight: null, time: s.end, text: "No downstream flight was pushed back by a late aircraft: every affected aircraft had enough ground time to absorb the delay.", proof: [] },
     {
